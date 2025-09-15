@@ -1,17 +1,40 @@
 package config
 
+import (
+	"github.com/spf13/viper"
+)
+
 // Config stores the application configuration.
 type Config struct {
-	PaperlessURL string
-	APIKey       string
+	PaperlessURL string `mapstructure:"paperless_url"`
+	APIKey       string `mapstructure:"api_key"`
+	WatchFolder  string `mapstructure:"watch_folder"`
 }
 
-// Load loads the configuration from a file or environment variables.
+// Load loads the configuration from a file and environment variables.
 func Load() (*Config, error) {
-	// In a real application, you would load this from a file (e.g., YAML, JSON)
-	// or from environment variables.
-	return &Config{
-		PaperlessURL: "http://localhost:8000",
-		APIKey:       "your-api-key",
-	}, nil
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")                        // look for config in the working directory
+	viper.AddConfigPath("/etc/paperless-uploader/") // and in a system-wide directory
+	viper.SetEnvPrefix("UPLOADER")
+	viper.AutomaticEnv()
+
+	// Set default values
+	viper.SetDefault("paperless_url", "http://localhost:8000")
+	viper.SetDefault("watch_folder", "watch")
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			// Config file not found; ignore error if it's just not there
+			return nil, err
+		}
+	}
+
+	var cfg Config
+	if err := viper.Unmarshal(&cfg); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }

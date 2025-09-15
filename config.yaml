@@ -1,0 +1,3 @@
+paperless_url: "http://host.docker.internal:8000"
+api_key: "629f2f7d451a3f63bec6f0adc9fd5477dd4973b5"
+watch_folder: "consume"

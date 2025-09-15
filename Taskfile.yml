@@ -1,0 +1,49 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task: build
+
+  build:
+    desc: "Build the application for different platforms"
+    cmds:
+      - task: build:linux
+      - task: build:windows
+
+  build:linux:
+    desc: "Build the application for Linux (amd64)"
+    cmds:
+      - GOOS=linux GOARCH=amd64 go build -o build/paperless-uploader-linux-amd64 cmd/paperless-uploader/main.go
+    silent: true
+
+  build:windows:
+    desc: "Build the application for Windows (amd64)"
+    cmds:
+      - GOOS=windows GOARCH=amd64 go build -o build/paperless-uploader-windows-amd64.exe cmd/paperless-uploader/main.go
+    silent: true
+
+  clean:
+    desc: "Remove build artifacts"
+    cmds:
+      - rm -rf build
+
+  dev:up:
+    desc: "Start the development environment"
+    cmds:
+      - docker-compose -f dev-environment/docker-compose.yml --env-file dev-environment/docker-compose.env up -d
+    silent: true
+
+  dev:down:
+    desc: "Stop the development environment"
+    cmds:
+      - docker-compose -f dev-environment/docker-compose.yml --env-file dev-environment/docker-compose.env down
+    silent: true
+
+  dev:logs:
+    desc: "View the logs of the development environment"
+    cmds:
+      - docker-compose -f dev-environment/docker-compose.yml --env-file dev-environment/docker-compose.env logs -f
+    silent: true

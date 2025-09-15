@@ -17,7 +17,7 @@ This is a Go application to upload documents to a Paperless-ngx instance.
 
 *   How to install your project:
 \`\`\`sh
-go get github.com/your-username/go-paperless-uploader
+go get github.com/c-yco/go-paperless-uploader
 \`\`\`
 
 ### Executing program

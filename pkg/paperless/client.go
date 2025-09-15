@@ -2,12 +2,14 @@ package paperless
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Client is a client for the Paperless-ngx API.
@@ -22,7 +24,7 @@ func NewClient(baseURL, apiKey string) *Client {
 	return &Client{
 		BaseURL:    baseURL,
 		APIKey:     apiKey,
-		HTTPClient: &http.Client{},
+		HTTPClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -48,7 +50,10 @@ func (c *Client) UploadDocument(filePath string) error {
 
 	writer.Close()
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/documents/post_document/", c.BaseURL), body)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/api/documents/post_document/", c.BaseURL), body)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -63,7 +68,9 @@ func (c *Client) UploadDocument(filePath string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to upload document: received status code %d", resp.StatusCode)
+		// It's helpful to see the response body for debugging
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to upload document: received status code %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	return nil
