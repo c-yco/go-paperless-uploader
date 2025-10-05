@@ -16,39 +16,73 @@ import (
 const exampleConfig = `paperless_url: "http://localhost:8000"
 api_key: "your-api-key"
 watch_folder: "consume"
+# post_upload_action can be 'delete', 'move', or left empty to do nothing.
+post_upload_action: ""
+# processed_folder is where files are moved to if post_upload_action is 'move'.
+processed_folder: "processed"
+# A list of tags to apply to the document.
+# tags:
+#  - tag1
+#  - tag2
 `
 
-func main() {
+var (
+	logFatal = log.Fatalf
+)
+
+func runApp() error {
 	// Command-line flags
 	filePath := flag.String("file", "", "The path to the document to upload")
-	watch := flag.Bool("watch", false, "Watch a directory for new files and upload them")
+	watch := flag.Bool("watch", true, "Watch a directory for new files and upload them")
 	createConfig := flag.Bool("create-config", false, "Create an example config.yaml file and exit")
 	force := flag.Bool("force", false, "Force overwrite of existing config file")
 	flag.Parse()
 
 	if *createConfig {
 		if _, err := os.Stat("config.yaml"); err == nil && !*force {
-			log.Fatal("config.yaml already exists. Use --force to overwrite.")
+			return fmt.Errorf("config.yaml already exists. Use --force to overwrite")
 		}
 		if err := os.WriteFile("config.yaml", []byte(exampleConfig), 0644); err != nil {
-			log.Fatalf("Failed to write config file: %v", err)
+			return fmt.Errorf("failed to write config file: %v", err)
 		}
 		if *force {
 			log.Println("Overwrote existing config.yaml with example configuration.")
 		} else {
 			log.Println("Created example config.yaml. Please edit it with your details.")
 		}
-		return
+		return nil
 	}
 
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		return fmt.Errorf("failed to load configuration: %v", err)
 	}
 
 	// Create a new Paperless client
 	client := paperless.NewClient(cfg.PaperlessURL, cfg.APIKey)
+
+	// Get all tags from Paperless
+	allTags, err := client.GetTags()
+	if err != nil {
+		return fmt.Errorf("failed to get tags from Paperless: %v", err)
+	}
+
+	// Create a map of tag names to tag IDs for quick lookup
+	tagMap := make(map[string]int)
+	for _, tag := range allTags {
+		tagMap[tag.Name] = tag.ID
+	}
+
+	// Convert configured tag names to tag IDs
+	var tagIDs []int
+	for _, tagName := range cfg.Tags {
+		if id, ok := tagMap[tagName]; ok {
+			tagIDs = append(tagIDs, id)
+		} else {
+			log.Printf("Warning: Tag '%s' not found in Paperless and will be ignored.", tagName)
+		}
+	}
 
 	// Log the configuration for debugging
 	apiKeyForLogging := ""
@@ -57,35 +91,36 @@ func main() {
 	} else {
 		apiKeyForLogging = "(too short to be valid)"
 	}
-	log.Printf("Loaded configuration: URL=[%s], APIKey=[%s], WatchFolder=[%s]", cfg.PaperlessURL, apiKeyForLogging, cfg.WatchFolder)
+	log.Printf("Loaded configuration: URL=[%s], APIKey=[%s], WatchFolder=[%s], PostUploadAction=[%s], ProcessedFolder=[%s], Tags=[%v]", cfg.PaperlessURL, apiKeyForLogging, cfg.WatchFolder, cfg.PostUploadAction, cfg.ProcessedFolder, cfg.Tags)
 
 	if *watch {
 		log.Printf("Watching directory: %s", cfg.WatchFolder)
-		watchDirectory(cfg, client)
+		return watchDirectory(cfg, client, tagIDs)
 	} else if *filePath != "" {
 		// Upload the document
 		fmt.Printf("Uploading %s to Paperless...\n", *filePath)
-		if err := client.UploadDocument(*filePath); err != nil {
-			log.Fatalf("Failed to upload document: %v", err)
+		if err := client.UploadDocument(*filePath, tagIDs); err != nil {
+			return fmt.Errorf("failed to upload document: %v", err)
 		}
 		fmt.Println("Document uploaded successfully!")
 	} else {
-		log.Fatal("Either the -file flag or the -watch flag is required")
+		return fmt.Errorf("either the -file flag or the -watch flag is required")
 	}
+	return nil
 }
 
-func watchDirectory(cfg *config.Config, client *paperless.Client) {
+func watchDirectory(cfg *config.Config, client *paperless.Client, tagIDs []int) error {
 	// Create the watch folder if it doesn't exist
 	if _, err := os.Stat(cfg.WatchFolder); os.IsNotExist(err) {
 		log.Printf("Watch folder '%s' not found, creating it.", cfg.WatchFolder)
 		if err := os.MkdirAll(cfg.WatchFolder, 0755); err != nil {
-			log.Fatalf("Failed to create watch folder: %v", err)
+			return fmt.Errorf("failed to create watch folder: %v", err)
 		}
 	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer watcher.Close()
 
@@ -101,12 +136,11 @@ func watchDirectory(cfg *config.Config, client *paperless.Client) {
 					log.Println("New file detected:", event.Name)
 					// Wait a moment for the file to be fully written
 					time.Sleep(1 * time.Second)
-					if err := client.UploadDocument(event.Name); err != nil {
+					if err := client.UploadDocument(event.Name, tagIDs); err != nil {
 						log.Printf("Failed to upload document %s: %v", event.Name, err)
 					} else {
 						log.Printf("Successfully uploaded %s", event.Name)
-						// Optionally, move or delete the file after upload
-						// os.Remove(event.Name)
+						handlePostUpload(cfg, event.Name)
 					}
 				}
 			case err, ok := <-watcher.Errors:
@@ -120,7 +154,7 @@ func watchDirectory(cfg *config.Config, client *paperless.Client) {
 
 	err = watcher.Add(cfg.WatchFolder)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Also process existing files in the directory
@@ -129,12 +163,11 @@ func watchDirectory(cfg *config.Config, client *paperless.Client) {
 			return err
 		}
 		if !info.IsDir() {
-			if err := client.UploadDocument(path); err != nil {
+			if err := client.UploadDocument(path, tagIDs); err != nil {
 				log.Printf("Failed to upload existing document %s: %v", path, err)
 			} else {
 				log.Printf("Successfully uploaded existing file %s", path)
-				// Optionally, move or delete the file after upload
-				// os.Remove(path)
+				handlePostUpload(cfg, path)
 			}
 		}
 		return nil
@@ -144,4 +177,29 @@ func watchDirectory(cfg *config.Config, client *paperless.Client) {
 	}
 
 	<-done
+	return nil
+}
+
+func handlePostUpload(cfg *config.Config, filePath string) {
+	switch cfg.PostUploadAction {
+	case "delete":
+		if err := os.Remove(filePath); err != nil {
+			log.Printf("Failed to delete file %s: %v", filePath, err)
+		} else {
+			log.Printf("Deleted file %s", filePath)
+		}
+	case "move":
+		if _, err := os.Stat(cfg.ProcessedFolder); os.IsNotExist(err) {
+			if err := os.MkdirAll(cfg.ProcessedFolder, 0755); err != nil {
+				log.Printf("Failed to create processed folder '%s': %v", cfg.ProcessedFolder, err)
+				return
+			}
+		}
+		newPath := filepath.Join(cfg.ProcessedFolder, filepath.Base(filePath))
+		if err := os.Rename(filePath, newPath); err != nil {
+			log.Printf("Failed to move file %s to %s: %v", filePath, newPath, err)
+		} else {
+			log.Printf("Moved file %s to %s", filePath, newPath)
+		}
+	}
 }
