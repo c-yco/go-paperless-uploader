@@ -16,13 +16,13 @@ tasks:
   build:linux:
     desc: "Build the application for Linux (amd64)"
     cmds:
-      - GOOS=linux GOARCH=amd64 go build -o build/paperless-uploader-linux-amd64 cmd/paperless-uploader/main.go
+      - GOOS=linux GOARCH=amd64 go build -o build/paperless-uploader-linux-amd64 ./cmd/paperless-uploader
     silent: true
 
   build:windows:
     desc: "Build the application for Windows (amd64)"
     cmds:
-      - GOOS=windows GOARCH=amd64 go build -o build/paperless-uploader-windows-amd64.exe cmd/paperless-uploader/main.go
+      - GOOS=windows GOARCH=amd64 go build -o build/paperless-uploader-windows-amd64.exe ./cmd/paperless-uploader
     silent: true
 
   test:
