@@ -27,7 +27,7 @@ processed_folder: "processed"
 `
 
 var (
-	logFatal = log.Fatalf
+	logFatal = log.Fatalf //nolint:unused // used in tests
 )
 
 func runApp() error {

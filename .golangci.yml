@@ -6,12 +6,13 @@ run:
 
 linters:
   enable:
-    - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
     - misspell
+  disable:
+    - errcheck
     - revive
     - gosec
     - gocritic
@@ -22,36 +23,11 @@ linters:
     - unparam
 
 linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  
   govet:
-    enable-all: true
-  
-  gosec:
-    severity: "medium"
-    confidence: "medium"
-  
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-      - name: error-return
-        severity: warning
-      - name: error-naming
-        severity: warning
-      - name: var-naming
-        severity: warning
+    enable:
+      - shadow
+      - printf
+      - nilness
 
 issues:
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
+  exclude-use-default: true

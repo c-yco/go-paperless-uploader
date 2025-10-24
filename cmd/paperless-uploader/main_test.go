@@ -69,13 +69,14 @@ api_key: "testkey"
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Handle both tags endpoint and upload endpoint
-			if r.URL.Path == "/api/tags/" {
+			switch r.URL.Path {
+			case "/api/tags/":
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`{"results": []}`))
-			} else if r.URL.Path == "/api/documents/post_document/" {
+			case "/api/documents/post_document/":
 				w.WriteHeader(http.StatusOK)
-			} else {
+			default:
 				w.WriteHeader(http.StatusOK)
 			}
 		}))
