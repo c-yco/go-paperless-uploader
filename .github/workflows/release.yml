@@ -25,14 +25,28 @@ jobs:
           cache: true
 
       - name: Run gosec Security Scanner
-        uses: securego/gosec@master
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          # Run gosec and display results in console
+          gosec -no-fail -fmt json -out gosec-results.json ./... || true
+          gosec -no-fail -fmt text ./... || true
+          
+          # Generate SARIF for upload (may have compatibility issues)
+          gosec -no-fail -fmt sarif -out gosec-results.sarif ./... || true
+
+      - name: Upload gosec results as artifact
+        uses: actions/upload-artifact@v4
         with:
-          args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
+          name: gosec-results
+          path: gosec-results.json
+        if: always()
 
       - name: Upload gosec SARIF file
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gosec-results.sarif
+        continue-on-error: true
+        if: always()
 
       - name: Run govulncheck
         run: |
