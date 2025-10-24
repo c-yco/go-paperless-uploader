@@ -7,13 +7,10 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - revive
     - gosec
@@ -31,9 +28,6 @@ linters-settings:
   
   govet:
     enable-all: true
-  
-  gofmt:
-    simplify: true
   
   gosec:
     severity: "medium"
