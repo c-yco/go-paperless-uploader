@@ -122,7 +122,11 @@ func watchDirectory(cfg *config.Config, client *paperless.Client, tagIDs []int) 
 	if err != nil {
 		return err
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			log.Printf("Error closing watcher: %v", err)
+		}
+	}()
 
 	done := make(chan bool)
 	go func() {

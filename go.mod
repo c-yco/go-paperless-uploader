@@ -1,6 +1,8 @@
 module github.com/c-yco/go-paperless-uploader
 
-go 1.24.5
+go 1.24.0
+
+toolchain go1.24.5
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
