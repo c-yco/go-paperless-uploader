@@ -28,12 +28,13 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.2.1
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.2.1
-          args: --timeout=5m
-          skip-cache: true
+        run: golangci-lint run --timeout=5m
 
   security:
     name: Security Scan
