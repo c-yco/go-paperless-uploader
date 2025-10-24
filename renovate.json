@@ -1,0 +1,64 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":automergeDigest",
+    ":automergeBranch"
+  ],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "timezone": "UTC",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "packageRules": [
+    {
+      "description": "Go dependencies",
+      "matchDatasources": ["go"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "branch",
+      "groupName": "Go dependencies (non-major)"
+    },
+    {
+      "description": "Go major updates",
+      "matchDatasources": ["go"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "groupName": "Go dependencies (major)"
+    },
+    {
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "automergeType": "branch",
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "Docker images",
+      "matchDatasources": ["docker"],
+      "automerge": true,
+      "automergeType": "branch",
+      "groupName": "Docker images"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": true,
+    "automergeType": "branch",
+    "schedule": ["at any time"]
+  },
+  "golang": {
+    "enabled": true,
+    "commitMessageTopic": "module {{depName}}"
+  },
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "ignoreDeps": [],
+  "ignoreTests": false
+}
