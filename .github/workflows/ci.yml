@@ -60,7 +60,7 @@ jobs:
           gosec -no-fail -fmt sarif -out gosec-results.sarif ./... || true
 
       - name: Upload gosec results as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gosec-results-${{ github.run_id }}
           path: gosec-results.json
@@ -152,7 +152,7 @@ jobs:
           go build -v -o build/paperless-uploader-${{ matrix.os }}-${{ matrix.arch }} ./cmd/paperless-uploader
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: paperless-uploader-${{ matrix.os }}-${{ matrix.arch }}
           path: build/paperless-uploader-${{ matrix.os }}-${{ matrix.arch }}*
